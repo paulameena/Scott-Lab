@@ -15,7 +15,9 @@ library(magrittr)
 library(conflicted)
 library(naniar)
 library(gtsummary)
-library(broom); library(rsample); library(yardstick)
+library(broom)
+library(rsample)
+library(yardstick)
 library(rms)
 library(rio)
 library(openxlsx)
@@ -25,7 +27,7 @@ library(MASS)
 library(caret)
 library(gridExtra)
 library(readr)
-
+library(BiocManager)
 
 ## add more packages here as desired
 
@@ -104,8 +106,7 @@ per_million_sf2 = sum(test1$RPK2)/1000000;
 per_million_sf3 = sum(test1$RPK3)/1000000;
 #print(per_million_sf1)
 
-test1 <- test1 %>% mutate("TPM1" = test1$RPK1/per_million_sf1)  %>% mutate("TPM2" = test1$RPK2/per_million_sf2) %>% mutate("TPM3" = test1$RPK3/per_million_sf3)
-
+test1 <- test1 %>% mutate("TPM1" = test1$RPK1/per_million_sf1) %>% mutate("TPM2" = test1$RPK2/per_million_sf2) %>% mutate("TPM3" = test1$RPK3/per_million_sf3)
 test1 <- test1 %>% mutate("RPKM1" = test1$repl1/per_million_sf1b/test1$gene_length_in_kb)  %>% mutate("RPKM2" = test1$repl2/per_million_sf2b/test1$gene_length_in_kb) %>% mutate("RPKM3" = test1$repl3/per_million_sf3b/test1$gene_length_in_kb)
 
 test1 <- test1 %>% mutate("AVG_RPKM" = (test1$RPKM1 + test1$RPKM2 + test1$RPKM3)/3) %>% mutate("AVG_TPM"= (test1$TPM1 + test1$TPM2 + test1$TPM3)/3)
@@ -131,16 +132,7 @@ clean_fused3 = clean(fused3)
 
 ## Generate Scatters of Cleaned Data
 ```{r add_meta_stats}
-ggplot(data=clean_fused1, mapping= aes(x= ensembl_id, y=AVG_RPKM), color = 'red') 
+ggplot(data=clean_fused1, mapping= aes(x= ensembl_id, y=AVG_RPKM), color = 'red') + geom_point() 
 
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
