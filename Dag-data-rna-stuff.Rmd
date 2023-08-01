@@ -1,0 +1,152 @@
+---
+title: "Dag_data_RNAseq_firstpass"
+author: "Paulameena Shultes"
+date: "2023-06-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# I think every project will need at least these packages
+library(here)
+library(janitor)
+library(knitr)
+library(magrittr)
+library(conflicted)
+library(naniar)
+library(gtsummary)
+library(broom); library(rsample); library(yardstick)
+library(rms)
+library(rio)
+library(openxlsx)
+library(gmodels)
+library(nnet)
+library(MASS)
+library(caret)
+library(gridExtra)
+library(readr)
+
+
+## add more packages here as desired
+
+library(tidymodels)
+library(tidyverse)
+
+theme_set(theme_bw())
+conflict_prefer("filter", "dplyr")
+conflict_prefer("select", "dplyr")
+```
+
+## Load Data from Shared Google Drive
+
+
+```{r load_data_here, message = FALSE, warning = FALSE}
+
+url1='https://drive.google.com/uc?id=19-kY0WUJxigy9QQyWnOgDEce7HAeLYKk'
+parental1 = read_tsv(url1, col_names = FALSE, skip =4)
+
+url2='https://drive.google.com/uc?id=18ZFkVSu-2wAaWSjr2YXgF9mlpK6ieXYr'
+parental2 = read_tsv(url2, col_names = FALSE, skip =4)
+
+url3="https://drive.google.com/uc?id=19XDoF3Nb9oV60yDzDGc2lhp-AwTTML8t"
+parental3 = read_tsv(url3, col_names = FALSE, skip =4)
+
+url4 ='https://drive.google.com/uc?id=1ATLb4B0vWJNqfEhm9bUHWzt1dUoqEgI3'
+resistant1 = read_tsv(url4, col_names = FALSE, skip =4)
+
+url5 = "https://drive.google.com/uc?id=1AKAQtGBlk9xtg38es0l_H4EEo73lhlX9"
+resistant2 = read_tsv(url5, col_names = FALSE, skip =4)
+
+url6 = "https://drive.google.com/uc?id=16WPJu-jZM9ivSlA8Nm-DcHQoLGIVUBJg"
+resistant3 = read_tsv(url6, col_names = FALSE, skip =4)
+
+url7 = "https://drive.google.com/uc?id=17IDZ0_uvVm_Icyio16R-VyZENOc_ZKBh"
+fused1 = read_tsv(url7, col_names = FALSE, skip =4)
+
+url8 = "https://drive.google.com/uc?id=17tjXP-oyYbeaMjcg4zrov6DkoGDf9q17"
+fused2 = read_tsv(url8, col_names = FALSE, skip =4)
+
+url9 = "https://drive.google.com/uc?id=17XWTGYhH4-bWv7Nx2v2zsgayunvGixRt"
+fused3 = read_tsv(url9, col_names = FALSE, skip =4)
+
+```
+
+## Create Clean Data Function
+```{r data_cleaning}
+library(biomaRt)
+
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+attributes = listAttributes(ensembl)
+
+ensembl_ref <-getBM(attributes=c('ensembl_gene_id','external_gene_name','hgnc_symbol','start_position', 'end_position'), mart = ensembl)
+
+clean <- function(x) {
+
+test1 = left_join(x, ensembl_ref, by= join_by('X1' == 'ensembl_gene_id')) 
+
+test1 <- test1 %>% mutate('gene_length_in_kb' = (test1$end_position - test1$start_position)/1000) %>% rename('ensembl_id' = 'X1', 'repl1'= 'X2', 'repl2'= 'X3', 'repl3' = 'X4')
+
+test1 <- test1[complete.cases(test1), ] #remove NA values for now
+
+test1 <- test1 %>% mutate("gene_name" = test1$external_gene_name) %>% select('gene_length_in_kb', 'external_gene_name', 'ensembl_id', 'repl1', 'repl2', 'repl3')
+
+test1 <- test1 %>% mutate("RPK1" = repl1/gene_length_in_kb) %>% mutate("RPK2" = repl2/gene_length_in_kb) %>% mutate("RPK3" = repl3/gene_length_in_kb) 
+
+per_million_sf1b= sum(test1$repl1)/1000000;
+per_million_sf2b = sum(test1$repl2)/1000000;
+per_million_sf3b = sum(test1$repl3)/1000000;
+
+
+per_million_sf1 = sum(test1$RPK1)/1000000;
+#print(per_million_sf1)
+per_million_sf2 = sum(test1$RPK2)/1000000;
+#print(per_million_sf1)
+per_million_sf3 = sum(test1$RPK3)/1000000;
+#print(per_million_sf1)
+
+test1 <- test1 %>% mutate("TPM1" = test1$RPK1/per_million_sf1)  %>% mutate("TPM2" = test1$RPK2/per_million_sf2) %>% mutate("TPM3" = test1$RPK3/per_million_sf3)
+
+test1 <- test1 %>% mutate("RPKM1" = test1$repl1/per_million_sf1b/test1$gene_length_in_kb)  %>% mutate("RPKM2" = test1$repl2/per_million_sf2b/test1$gene_length_in_kb) %>% mutate("RPKM3" = test1$repl3/per_million_sf3b/test1$gene_length_in_kb)
+
+test1 <- test1 %>% mutate("AVG_RPKM" = (test1$RPKM1 + test1$RPKM2 + test1$RPKM3)/3) %>% mutate("AVG_TPM"= (test1$TPM1 + test1$TPM2 + test1$TPM3)/3)
+
+}
+
+```
+
+##Run Data Cleaning on all samples
+```{r do_data_cleaning}
+clean_parent1 = clean(parental1)
+clean_parent2 = clean(parental2)
+clean_parent3 = clean(parental3)
+clean_resistant1 = clean(resistant1)
+clean_resistant2 = clean(resistant2)
+clean_resistant3 = clean(resistant3)
+clean_fused1 = clean(fused1)
+clean_fused2 = clean(fused2)
+clean_fused3 = clean(fused3)
+
+```
+
+
+##ANOVA betewen cell lines
+```{r add_meta_stats}
+
+
+
+```
+##Run PC analysis on 9 samples
+```{r add_meta_stats}
+
+
+
+```
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
