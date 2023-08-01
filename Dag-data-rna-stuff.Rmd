@@ -33,8 +33,6 @@ library(BiocManager)
 
 library(tidymodels)
 library(tidyverse)
-
-theme_set(theme_bw())
 conflict_prefer("filter", "dplyr")
 conflict_prefer("select", "dplyr")
 ```
