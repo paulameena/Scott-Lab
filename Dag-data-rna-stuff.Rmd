@@ -129,18 +129,12 @@ clean_fused3 = clean(fused3)
 ```
 
 
-##ANOVA betewen cell lines
+## Generate Scatters of Cleaned Data
 ```{r add_meta_stats}
-
-
+ggplot(data=clean_fused1, mapping= aes(x= ensembl_id, y=AVG_RPKM), color = 'red') 
 
 ```
-##Run PC analysis on 9 samples
-```{r add_meta_stats}
 
-
-
-```
 ## Including Plots
 
 You can also embed plots, for example:
